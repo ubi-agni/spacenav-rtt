@@ -42,6 +42,7 @@
 #include <signal.h>
 
 #include <boost/program_options.hpp>
+#include <boost/lexical_cast.hpp>
 
 #include <rsc/threading/SynchronizedQueue.h>
 #include <rsb/Factory.h>
@@ -185,9 +186,52 @@ void handleCommandline(int argc, char *argv[]) {
 
 int main(int argc, char *argv[]) {
 
-	int device_fd;
+	int device_fd = -1;
 
+	// Backup Symlink!
 	std::string dev_event_file_name = "/dev/input/spacenavigator";
+
+	// try to find 3DConnexion SpaceNavigator first
+	int i = 0;
+	struct input_id ID;
+
+	while (i < 32) {
+		dev_event_file_name = "/dev/input/event" + boost::lexical_cast<std::string>(i++);
+		device_fd = open(dev_event_file_name.c_str(), O_RDWR | O_NONBLOCK);
+		if (device_fd > 0) {
+			ioctl(device_fd, EVIOCGID, &ID);        // get device ID
+			if ( //http://spacemice.org/index.php?title=Dev
+			((ID.vendor == 0x046d) && // Logitech's Vendor ID, used by 3DConnexion until they got their own.
+				( //(ID.product == 0xc603) || // SpaceMouse (untested)
+					  //(ID.product == 0xc605) || // CADMan (untested)
+					  //(ID.product == 0xc606) || // SpaceMouse Classic (untested)
+					  //(ID.product == 0xc621) || // SpaceBall 5000
+					  //(ID.product == 0xc623) || // SpaceTraveler (untested)
+					  //(ID.product == 0xc625) || // SpacePilot (untested)
+					(ID.product == 0xc626) || // SpaceNavigators
+					  //(ID.product == 0xc627) || // SpaceExplorer (untested)
+					  //(ID.product == 0xc628) || // SpaceNavigator for Notebooks (untested)
+					  //(ID.product == 0xc629) || // SpacePilot Pro (untested)
+					  //(ID.product == 0xc62b) || // SpaceMousePro
+					0)
+				)
+			|| ((ID.vendor == 0x256F) && // 3Dconnexion's Vendor ID
+				(
+					(ID.product == 0xc62E) || // SpaceMouse Wireless (cable) (untested)
+					(ID.product == 0xc62F) || // SpaceMouse Wireless (receiver) (untested)
+					(ID.product == 0xc631) || // Spacemouse Wireless (untested)
+					(ID.product == 0xc632) || // SpacemousePro Wireless (untested)
+					0)
+				)
+			) {
+				printf("Using evdev device: %s\n", dev_event_file_name.c_str());
+				break;
+			} else {
+				close(device_fd);
+				device_fd = -1;
+			}
+		}
+	}
 
 	rsb::converter::Converter<string>::Ptr poseConverter(
 			new rsb::converter::ProtocolBufferConverter<rst::dynamics::Wrench>());
@@ -196,8 +240,8 @@ int main(int argc, char *argv[]) {
 
 	rsb::Factory& factory = rsb::getFactory();
 
-	rsb::Informer<rst::dynamics::Wrench>::Ptr informer = factory.createInformer
-			< rst::dynamics::Wrench > (rsb::Scope(outScope));
+	rsb::Informer<rst::dynamics::Wrench>::Ptr informer = factory.createInformer<
+			rst::dynamics::Wrench>(rsb::Scope(outScope));
 
 	if ((device_fd = open(dev_event_file_name.c_str(), O_RDWR)) == -1) {
 		if ((device_fd = open(dev_event_file_name.c_str(), O_RDONLY)) == -1) {
@@ -205,6 +249,11 @@ int main(int argc, char *argv[]) {
 			exit(EXIT_FAILURE);
 		}
 		fprintf(stderr, "opened device read-only, LEDs won't work\n");
+	}
+
+	if(device_fd <= 0) {
+		std::cerr << "Error while opening the device at " << dev_event_file_name << std::endl;
+		exit(EXIT_FAILURE);
 	}
 
 // ###################### NUMBER OF AXIS ######################

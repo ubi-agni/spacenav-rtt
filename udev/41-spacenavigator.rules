@@ -1,0 +1,5 @@
+# udev rules for 3DConnexion SpaceNavigator
+
+# convenience symlinks for the known devices
+KERNEL=="event[0-9]*", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c62[68]", MODE="0664", GROUP="plugdev", SYMLINK+="input/spacenavigator"
+
