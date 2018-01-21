@@ -1,0 +1,10 @@
+import("eigen_typekit")
+# import("rst-rt_typekit")
+import("spacenav")
+
+loadComponent("sn", "cosima::hw::SpaceNavOrocos")
+setFileDescriptorActivity("sn", 0, 1, ORO_SCHED_OTHER)
+
+sn.configure()
+# You should see flashing lights
+sn.start()
