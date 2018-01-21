@@ -92,7 +92,7 @@ if (RSC_FOUND)
   message(STATUS "### Compiling     RSB    wrapper for SpaceNav HID! ###")
   message(STATUS "######################################################")
   SET(BINARY_NAME_RSB "spacenav-rsb")
-  ADD_EXECUTABLE(${BINARY_NAME_RSB} "src/spacenav-rsb.cpp")
+  ADD_EXECUTABLE(${BINARY_NAME_RSB} "src/rsb/spacenav-rsb.cpp")
   TARGET_LINK_LIBRARIES(${BINARY_NAME_RSB} ${RSB_LIBRARIES} ${RST_CONVERTERS_LIBRARIES})
 
   INSTALL(TARGETS ${BINARY_NAME_RSB}
