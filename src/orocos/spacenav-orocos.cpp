@@ -52,7 +52,7 @@ bool SpaceNavOrocos::startHook() {
     if (activity) {
         activity->watch(getFileDescriptor());
         // get trigger a least every 25 ms
-        activity->setTimeout(25);
+        // activity->setTimeout(25);
     }
     return true;
 }
@@ -70,16 +70,21 @@ void SpaceNavOrocos::updateHook() {
         out_6d_var(0) = values.tx;
         out_6d_var(1) = values.ty;
         out_6d_var(2) = values.tz;
+    } else {
+        out_6d_var(0) = 0;
+        out_6d_var(1) = 0;
+        out_6d_var(2) = 0;
     }
 
     if (!values.button2) {
         out_6d_var(3) = values.rx;
         out_6d_var(4) = values.ry;
         out_6d_var(5) = values.rz;
+    } else {
+        out_6d_var(3) = 0;
+        out_6d_var(4) = 0;
+        out_6d_var(5) = 0;
     }
-
-    // rcmd.buttonValue.push_back(values.button1);
-    // rcmd.buttonValue.push_back(values.button2);
 
     out_6d_port.write(out_6d_var);
 

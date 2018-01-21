@@ -97,17 +97,11 @@ bool SpaceNavHID::init() {
     std::cerr << "[SpaceNavHID] " << "Folder not found " << devDirectory << std::endl;
     return false;
   }
+  
   /* walk the directory (non-recursively) */
   while((entry = readdir(dp))) {
-    // strncpy(path, devDirectory, sizeof(path));
     path = devDirectory;
-    /* if strlen(devDirectory) > sizeof(path) the path won't be NULL terminated
-     * and *bad things* will happen. Therfore, we force NULL termination.
-     */
-    // path[PATH_BUFFER_SIZE-1] = '\0';
-    // strncat(path, entry->d_name, sizeof(path));
     path.append(entry->d_name);
-
     std::cout << "[SpaceNavHID] " << "Checking " << path << " ... ";
     fd = open(path.c_str(), O_RDONLY | O_NONBLOCK);
     if(-1 == fd) {
@@ -391,25 +385,14 @@ void SpaceNavHID::getValue(SpaceNavValues &coordinates, SpaceNavValues &rawValue
   // }
 
   // translation
-  // if (!btn_1_pressed) {
     coordinates.tx = -1 * getSlopedOutput(1, rawValues.tx);
     coordinates.ty = -1 * getSlopedOutput(0, rawValues.ty);
     coordinates.tz = -1 * getSlopedOutput(2, rawValues.tz);
-  // } else {
-  //   coordinates.tx = 0;
-  //   coordinates.ty = 0;
-  //   coordinates.tz = 0;
-  // }
   // rotation
-  // if (!btn_0_pressed) {
     coordinates.rx = -1 * getSlopedOutput(3, rawValues.rx);
     coordinates.ry = -1 * getSlopedOutput(4, rawValues.ry);
     coordinates.rz = -1 * getSlopedOutput(5, rawValues.rz);
-  // } else {
-  //   coordinates.rx = 0;
-  //   coordinates.ry = 0;
-  //   coordinates.rz = 0;
-  // }
+
   oldValues = rawValues;
 }
 
@@ -433,7 +416,6 @@ bool SpaceNavHID::setLedState(const int state) {
 	evLed.value = state; // on 1 / off 0
 
 	if (write(fd, &evLed, sizeof evLed) == -1) {
-		// fprintf(stderr, "failed to turn LED %s\n", state ? "on" : "off");
 		return false;
 	}
 	return true;
