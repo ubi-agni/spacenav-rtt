@@ -3,7 +3,7 @@
 
 using namespace cosima::hw;
 
-SpaceNavOrocos::SpaceNavOrocos(std::string const &name) : RTT::TaskContext(name), scale(0.01)
+SpaceNavOrocos::SpaceNavOrocos(std::string const &name) : RTT::TaskContext(name), scale(0.001)
 {
     addProperty("scale", scale);
     interface = new SpaceNavHID();
@@ -133,9 +133,10 @@ void SpaceNavOrocos::updateHook()
     else
     {
         // if we do have a pose, we treat our values as new delta!
-        in_current_pose_flow = in_current_pose_port.read(in_current_pose_var);
         if (in_current_pose_flow == RTT::NoData)
         {
+            // get the ground truth only once!
+            in_current_pose_flow = in_current_pose_port.read(in_current_pose_var);
             return;
         }
 
@@ -150,11 +151,18 @@ void SpaceNavOrocos::updateHook()
         out_pose_var.translation.translation(0) = in_current_pose_var.translation.translation(0) + out_6d_var(0);
         out_pose_var.translation.translation(1) = in_current_pose_var.translation.translation(1) + out_6d_var(1);
         out_pose_var.translation.translation(2) = in_current_pose_var.translation.translation(2) + out_6d_var(2);
-        out_pose_var.rotation.rotation(0) = qBase.w();
-        out_pose_var.rotation.rotation(1) = qBase.x();
-        out_pose_var.rotation.rotation(2) = qBase.y();
-        out_pose_var.rotation.rotation(3) = qBase.z();
+        // out_pose_var.rotation.rotation(0) = qBase.w();
+        // out_pose_var.rotation.rotation(1) = qBase.x();
+        // out_pose_var.rotation.rotation(2) = qBase.y();
+        // out_pose_var.rotation.rotation(3) = qBase.z();
 
+        out_pose_var.rotation.rotation(0) = 0;
+        out_pose_var.rotation.rotation(1) = 0;
+        out_pose_var.rotation.rotation(2) = 1;
+        out_pose_var.rotation.rotation(3) = 0;
+
+        // save state to not return to the initially read pose.
+        in_current_pose_var = out_pose_var;
         out_pose_port.write(out_pose_var);
     }
 

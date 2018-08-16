@@ -31,7 +31,7 @@ import("eigen_typekit")
 
 # Import the rst-rt typekit,
 # once we have a dedicated data type.
-# import("rst-rt_typekit")
+import("rst-rt_typekit")
 
 # Import the cosima::hw::SpaceNavOrocos component library.
 import("spacenav")
