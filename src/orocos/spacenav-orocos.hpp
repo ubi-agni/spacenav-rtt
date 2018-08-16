@@ -55,6 +55,8 @@ protected:
 private:
   cosima::hw::SpaceNavValues values;
   cosima::hw::SpaceNavValues rawValues;
+
+  float scale;
 };
 
 } // namespace hw

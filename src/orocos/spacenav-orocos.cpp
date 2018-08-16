@@ -3,8 +3,9 @@
 
 using namespace cosima::hw;
 
-SpaceNavOrocos::SpaceNavOrocos(std::string const &name) : RTT::TaskContext(name)
+SpaceNavOrocos::SpaceNavOrocos(std::string const &name) : RTT::TaskContext(name), scale(0.01)
 {
+    addProperty("scale", scale);
     interface = new SpaceNavHID();
 }
 
@@ -121,6 +122,8 @@ void SpaceNavOrocos::updateHook()
         out_6d_var(4) = 0;
         out_6d_var(5) = 0;
     }
+
+    out_6d_var *= scale;
 
     if (!in_current_pose_port.connected())
     {
