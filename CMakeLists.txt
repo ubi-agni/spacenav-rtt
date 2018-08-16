@@ -119,7 +119,7 @@ if (OROCOS-RTT_FOUND)
     ${USE_OROCOS_LIBRARIES}
     ${OROCOS-RTT_LIBRARIES}
     #${Boost_LIBRARIES}
-    #${RST-RT_LIBRARIES}
+    ${RST-RT_LIBRARIES}
     ${LIBRARY_NAME}
   )
   orocos_generate_package()

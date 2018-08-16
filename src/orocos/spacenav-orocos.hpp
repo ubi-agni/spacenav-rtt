@@ -10,44 +10,54 @@
 #include <Eigen/Core>
 
 // // RST-RT
-// #include <rst-rt/dynamics/Wrench.hpp>
+#include <rst-rt/geometry/Pose.hpp>
 
-namespace cosima {
-    namespace hw {
+namespace cosima
+{
+namespace hw
+{
 
-    class SpaceNavOrocos : public RTT::TaskContext {
-    
-    public:
-        SpaceNavOrocos(std::string const& name = "SpaceNavOrocos");
+class SpaceNavOrocos : public RTT::TaskContext
+{
 
-	    // ~SpaceNavOrocos();
+public:
+  SpaceNavOrocos(std::string const &name = "SpaceNavOrocos");
 
-        bool configureHook();
+  // ~SpaceNavOrocos();
 
-        bool startHook();
+  bool configureHook();
 
-        void updateHook();
+  bool startHook();
 
-        // void errorHook();
+  void updateHook();
 
-        void stopHook();
+  // void errorHook();
 
-        void cleanupHook();
+  void stopHook();
 
-    protected:
-        cosima::hw::SpaceNavHID *interface;
+  void cleanupHook();
 
-        virtual int getFileDescriptor();
+protected:
+  cosima::hw::SpaceNavHID *interface;
 
-        RTT::OutputPort<Eigen::VectorXf> out_6d_port;
-        Eigen::VectorXf out_6d_var;
+  virtual int getFileDescriptor();
 
-    private:
-        cosima::hw::SpaceNavValues values;
-        cosima::hw::SpaceNavValues rawValues;
-    };
+  RTT::OutputPort<Eigen::VectorXf> out_6d_port;
+  Eigen::VectorXf out_6d_var;
 
-}
-}
+  RTT::OutputPort<rstrt::geometry::Pose> out_pose_port;
+  rstrt::geometry::Pose out_pose_var;
+
+  RTT::InputPort<rstrt::geometry::Pose> in_current_pose_port;
+  rstrt::geometry::Pose in_current_pose_var;
+  RTT::FlowStatus in_current_pose_flow;
+
+private:
+  cosima::hw::SpaceNavValues values;
+  cosima::hw::SpaceNavValues rawValues;
+};
+
+} // namespace hw
+} // namespace cosima
 
 #endif
