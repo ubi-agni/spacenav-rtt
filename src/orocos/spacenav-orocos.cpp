@@ -3,9 +3,10 @@
 
 using namespace cosima::hw;
 
-SpaceNavOrocos::SpaceNavOrocos(std::string const &name) : RTT::TaskContext(name), scale(0.001)
+SpaceNavOrocos::SpaceNavOrocos(std::string const &name) : RTT::TaskContext(name), offsetTranslation(0.001), offsetOrientation(0.001), button1_old(false), button2_old(false)
 {
-    addProperty("scale", scale);
+    addProperty("offsetTranslation", offsetTranslation);
+    addProperty("offsetOrientation", offsetOrientation);
     interface = new SpaceNavHID();
 }
 
@@ -83,25 +84,62 @@ bool SpaceNavOrocos::startHook()
         activity->watch(getFileDescriptor());
         // get trigger a least every 25 ms
         // activity->setTimeout(25);
+        interface->setLedState(1);
+        return true;
     }
-    return true;
+    return false;
 }
 
 // void SpaceNavOrocos::errorHook() {
 //     RTT::log(RTT::Fatal) << "ERROR??? TODO" << RTT::endlog();
 // }
 
+template <typename T>
+int sgn(T val)
+{
+    return (T(0) < val) - (val < T(0));
+}
+
 void SpaceNavOrocos::updateHook()
 {
     interface->getValue(values, rawValues);
 
     // TODO do some scaling!
+    if (values.button1 != button1_old)
+    {
+        button1_old = values.button1;
+        if (!button1_old)
+        {
+            RTT::log(RTT::Error) << "[" << this->getName() << "] "
+                                 << "Enabled translation change." << RTT::endlog();
+        }
+        else
+        {
+            RTT::log(RTT::Error) << "[" << this->getName() << "] "
+                                 << "Disabled translation change." << RTT::endlog();
+        }
+    }
+
+    if (values.button2 != button2_old)
+    {
+        button2_old = values.button2;
+        if (!button2_old)
+        {
+            RTT::log(RTT::Error) << "[" << this->getName() << "] "
+                                 << "Enabled orientation change." << RTT::endlog();
+        }
+        else
+        {
+            RTT::log(RTT::Error) << "[" << this->getName() << "] "
+                                 << "Disabled orientation change." << RTT::endlog();
+        }
+    }
 
     if (!values.button1)
     {
-        out_6d_var(0) = values.tx;
-        out_6d_var(1) = values.ty;
-        out_6d_var(2) = values.tz;
+        out_6d_var(0) = sgn(values.tx) * offsetTranslation;
+        out_6d_var(1) = sgn(values.ty) * offsetTranslation;
+        out_6d_var(2) = sgn(values.tz) * offsetTranslation;
     }
     else
     {
@@ -112,9 +150,9 @@ void SpaceNavOrocos::updateHook()
 
     if (!values.button2)
     {
-        out_6d_var(3) = values.rx;
-        out_6d_var(4) = values.ry;
-        out_6d_var(5) = values.rz;
+        out_6d_var(3) = sgn(values.rx) * offsetOrientation;
+        out_6d_var(4) = sgn(values.ry) * offsetOrientation;
+        out_6d_var(5) = sgn(values.rz) * offsetOrientation;
     }
     else
     {
@@ -122,8 +160,6 @@ void SpaceNavOrocos::updateHook()
         out_6d_var(4) = 0;
         out_6d_var(5) = 0;
     }
-
-    out_6d_var *= scale;
 
     if (!in_current_pose_port.connected())
     {
@@ -140,9 +176,11 @@ void SpaceNavOrocos::updateHook()
             return;
         }
 
-        Eigen::AngleAxisf rollAngle(out_6d_var(3), Eigen::Vector3f::UnitX());
+        // Eigen::AngleAxisf rollAngle(out_6d_var(3), Eigen::Vector3f::UnitX());
+        Eigen::AngleAxisf rollAngle(0.0, Eigen::Vector3f::UnitX());
         Eigen::AngleAxisf pitchAngle(out_6d_var(4), Eigen::Vector3f::UnitY());
-        Eigen::AngleAxisf yawAngle(out_6d_var(5), Eigen::Vector3f::UnitZ());
+        Eigen::AngleAxisf yawAngle(0.0, Eigen::Vector3f::UnitZ());
+        // Eigen::AngleAxisf yawAngle(out_6d_var(5), Eigen::Vector3f::UnitZ());
         Eigen::Quaternionf q = rollAngle * pitchAngle * yawAngle;
 
         Eigen::Quaternionf qBase = Eigen::Quaternionf(in_current_pose_var.rotation.rotation(0), in_current_pose_var.rotation.rotation(1), in_current_pose_var.rotation.rotation(2), in_current_pose_var.rotation.rotation(3));
@@ -151,29 +189,29 @@ void SpaceNavOrocos::updateHook()
         out_pose_var.translation.translation(0) = in_current_pose_var.translation.translation(0) + out_6d_var(0);
         out_pose_var.translation.translation(1) = in_current_pose_var.translation.translation(1) + out_6d_var(1);
         out_pose_var.translation.translation(2) = in_current_pose_var.translation.translation(2) + out_6d_var(2);
-        // out_pose_var.rotation.rotation(0) = qBase.w();
-        // out_pose_var.rotation.rotation(1) = qBase.x();
-        // out_pose_var.rotation.rotation(2) = qBase.y();
-        // out_pose_var.rotation.rotation(3) = qBase.z();
+        out_pose_var.rotation.rotation(0) = qBase.w();
+        out_pose_var.rotation.rotation(1) = qBase.x();
+        out_pose_var.rotation.rotation(2) = qBase.y();
+        out_pose_var.rotation.rotation(3) = qBase.z();
 
-        out_pose_var.rotation.rotation(0) = 0;
-        out_pose_var.rotation.rotation(1) = 0;
-        out_pose_var.rotation.rotation(2) = 1;
-        out_pose_var.rotation.rotation(3) = 0;
+        // out_pose_var.rotation.rotation(0) = 0;
+        // out_pose_var.rotation.rotation(1) = 0;
+        // out_pose_var.rotation.rotation(2) = 1;
+        // out_pose_var.rotation.rotation(3) = 0;
 
         // save state to not return to the initially read pose.
         in_current_pose_var = out_pose_var;
         out_pose_port.write(out_pose_var);
     }
 
-    // if (interface->getNumAxes() != axisScales.size()) {
-    //     // TODO send zero or just do not scale ??
+    // if (interface->getNumAxes() != axisoffsetTranslations.size()) {
+    //     // TODO send zero or just do not offsetTranslation ??
     //     return;
     // }
 
-    // for(size_t i = 0 ; i < axisScales.size(); i++)
+    // for(size_t i = 0 ; i < axisoffsetTranslations.size(); i++)
     // {
-    //     rscaled.axisValue[i] *= axisScales[i];
+    //     roffsetTranslationd.axisValue[i] *= axisoffsetTranslations[i];
     // }
 }
 
@@ -182,6 +220,7 @@ void SpaceNavOrocos::stopHook()
     RTT::extras::FileDescriptorActivity *activity = getActivity<RTT::extras::FileDescriptorActivity>();
     if (activity)
         activity->clearAllWatches();
+    interface->setLedState(0);
 }
 
 void SpaceNavOrocos::cleanupHook()
@@ -190,6 +229,14 @@ void SpaceNavOrocos::cleanupHook()
     {
         delete interface;
     }
+}
+
+void SpaceNavOrocos::displayStatus()
+{
+    RTT::log(RTT::Error) << "[" << this->getName() << "] Info\n"
+                         << "Listening to interface " << getFileDescriptor() << "\n"
+                         << "Button 1 " << (!button1_old ? "Not pressed => Translation enabled" : "Pressed => Translation disabled") << "\n"
+                         << "Button 2 " << (!button2_old ? "Not pressed => Orientation enabled" : "Pressed => Orientation disabled") << RTT::endlog();
 }
 
 ORO_CREATE_COMPONENT_LIBRARY()

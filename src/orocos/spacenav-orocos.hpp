@@ -37,6 +37,8 @@ public:
 
   void cleanupHook();
 
+  void displayStatus();
+
 protected:
   cosima::hw::SpaceNavHID *interface;
 
@@ -56,7 +58,10 @@ private:
   cosima::hw::SpaceNavValues values;
   cosima::hw::SpaceNavValues rawValues;
 
-  float scale;
+  float offsetTranslation;
+  float offsetOrientation;
+
+  bool button1_old, button2_old;
 };
 
 } // namespace hw
