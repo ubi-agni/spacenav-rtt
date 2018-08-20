@@ -198,13 +198,27 @@ void SpaceNavOrocos::updateHook()
             return;
         }
 
-        Eigen::AngleAxisf rollAngle(out_6d_var(3), Eigen::Vector3f::UnitX());
-        Eigen::AngleAxisf pitchAngle(out_6d_var(4), Eigen::Vector3f::UnitY());
-        Eigen::AngleAxisf yawAngle(out_6d_var(5), Eigen::Vector3f::UnitZ());
-        Eigen::Quaternionf q = rollAngle * pitchAngle * yawAngle;
+        // Eigen::AngleAxisf rollAngle(out_6d_var(3), Eigen::Vector3f::UnitX());
+        // Eigen::AngleAxisf pitchAngle(out_6d_var(4), Eigen::Vector3f::UnitY());
+        // Eigen::AngleAxisf yawAngle(out_6d_var(5), Eigen::Vector3f::UnitZ());
 
-        Eigen::Quaternionf qBase = Eigen::Quaternionf(in_current_pose_var.rotation.rotation(0), in_current_pose_var.rotation.rotation(1), in_current_pose_var.rotation.rotation(2), in_current_pose_var.rotation.rotation(3));
+        Eigen::Quaternionf q = out_pose_var.rotation.euler2Quaternion(out_6d_var(3), out_6d_var(4), out_6d_var(5));
+        // Eigen::Quaternionf q = rollAngle * pitchAngle * yawAngle;
+        // Eigen::Quaternionf q = yawAngle * pitchAngle * rollAngle;
+
+        // Eigen::Quaternionf qBase = Eigen::Quaternionf(in_current_pose_var.rotation.rotation(0), in_current_pose_var.rotation.rotation(1), in_current_pose_var.rotation.rotation(2), in_current_pose_var.rotation.rotation(3));
+        Eigen::Quaternionf qBase;
+        qBase.w() = in_current_pose_var.rotation.rotation(0);
+        qBase.x() = in_current_pose_var.rotation.rotation(1);
+        qBase.y() = in_current_pose_var.rotation.rotation(2);
+        qBase.z() = in_current_pose_var.rotation.rotation(3);
+        q.normalize();
+        qBase.normalize();
+        // RTT::log(RTT::Error)
+        // << "q     = " << q.w() << ", " << q.x() << ", " << q.y() << ", " << q.z() << RTT::endlog();
+        // RTT::log(RTT::Error) << "qBase = " << qBase.w() << ", " << qBase.x() << ", " << qBase.y() << ", " << qBase.z() << RTT::endlog();
         qBase *= q;
+        // RTT::log(RTT::Error) << "resul = " << qBase.w() << ", " << qBase.x() << ", " << qBase.y() << ", " << qBase.z() << RTT::endlog();
 
         out_pose_var.translation.translation(0) = in_current_pose_var.translation.translation(0) + out_6d_var(0);
         out_pose_var.translation.translation(1) = in_current_pose_var.translation.translation(1) + out_6d_var(1);
