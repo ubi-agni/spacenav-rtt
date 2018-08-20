@@ -70,6 +70,8 @@ private:
   bool button1_old, button2_old;
 
   bool enableX, enableY, enableZ, enableA, enableB, enableC;
+
+  int sensitivity;
 };
 
 } // namespace hw

@@ -3,13 +3,14 @@
 
 using namespace cosima::hw;
 
-SpaceNavOrocos::SpaceNavOrocos(std::string const &name) : RTT::TaskContext(name), offsetTranslation(0.001), offsetOrientation(0.001), button1_old(false), button2_old(false), enableX(true), enableY(true), enableZ(true), enableA(true), enableB(true), enableC(true)
+SpaceNavOrocos::SpaceNavOrocos(std::string const &name) : RTT::TaskContext(name), offsetTranslation(0.001), offsetOrientation(0.001), button1_old(false), button2_old(false), enableX(true), enableY(true), enableZ(true), enableA(true), enableB(true), enableC(true), sensitivity(160)
 {
     addOperation("displayStatus", &SpaceNavOrocos::displayStatus, this).doc("Display the current status of this component.");
     addOperation("resetOrientation", &SpaceNavOrocos::resetOrientation, this).doc("Reset the orientation to new quaternion values.");
     addOperation("resetPoseToInitial", &SpaceNavOrocos::resetPoseToInitial, this).doc("Reset the entire pose to the initial one.");
     addOperation("resetPose", &SpaceNavOrocos::resetPose, this).doc("Reset the pose to a new one.");
 
+    addProperty("sensitivity", sensitivity);
     addProperty("offsetTranslation", offsetTranslation);
     addProperty("offsetOrientation", offsetOrientation);
     addProperty("enableX", enableX);
@@ -116,6 +117,14 @@ void SpaceNavOrocos::updateHook()
 {
     interface->getValue(values, rawValues);
 
+    // adjust sensitivity
+    values.tx = fabs(values.tx) > sensitivity ? values.tx : 0.0;
+    values.ty = fabs(values.ty) > sensitivity ? values.ty : 0.0;
+    values.tz = fabs(values.tz) > sensitivity ? values.tz : 0.0;
+    values.rx = fabs(values.rx) > sensitivity ? values.rx : 0.0;
+    values.ry = fabs(values.ry) > sensitivity ? values.ry : 0.0;
+    values.rz = fabs(values.rz) > sensitivity ? values.rz : 0.0;
+
     // TODO do some scaling!
     if (values.button1 != button1_old)
     {
@@ -204,11 +213,6 @@ void SpaceNavOrocos::updateHook()
         out_pose_var.rotation.rotation(1) = qBase.x();
         out_pose_var.rotation.rotation(2) = qBase.y();
         out_pose_var.rotation.rotation(3) = qBase.z();
-
-        // out_pose_var.rotation.rotation(0) = 0;
-        // out_pose_var.rotation.rotation(1) = 0;
-        // out_pose_var.rotation.rotation(2) = 1;
-        // out_pose_var.rotation.rotation(3) = 0;
 
         // save state to not return to the initially read pose.
         in_current_pose_var = out_pose_var;
