@@ -62,6 +62,8 @@ private:
   float offsetOrientation;
 
   bool button1_old, button2_old;
+
+  bool enableX, enableY, enableZ, enableA, enableB, enableC;
 };
 
 } // namespace hw

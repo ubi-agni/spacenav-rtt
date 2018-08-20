@@ -3,10 +3,18 @@
 
 using namespace cosima::hw;
 
-SpaceNavOrocos::SpaceNavOrocos(std::string const &name) : RTT::TaskContext(name), offsetTranslation(0.001), offsetOrientation(0.001), button1_old(false), button2_old(false)
+SpaceNavOrocos::SpaceNavOrocos(std::string const &name) : RTT::TaskContext(name), offsetTranslation(0.001), offsetOrientation(0.001), button1_old(false), button2_old(false), enableX(true), enableY(true), enableZ(true), enableA(true), enableB(true), enableC(true)
 {
+    addOperation("displayStatus", &SpaceNavOrocos::displayStatus, this).doc("Display the current status of this component.");
+
     addProperty("offsetTranslation", offsetTranslation);
     addProperty("offsetOrientation", offsetOrientation);
+    addProperty("enableX", enableX);
+    addProperty("enableY", enableY);
+    addProperty("enableZ", enableZ);
+    addProperty("enableA", enableA);
+    addProperty("enableB", enableB);
+    addProperty("enableC", enableC);
     interface = new SpaceNavHID();
 }
 
@@ -137,9 +145,9 @@ void SpaceNavOrocos::updateHook()
 
     if (!values.button1)
     {
-        out_6d_var(0) = sgn(values.tx) * offsetTranslation;
-        out_6d_var(1) = sgn(values.ty) * offsetTranslation;
-        out_6d_var(2) = sgn(values.tz) * offsetTranslation;
+        out_6d_var(0) = enableX ? sgn(values.tx) * offsetTranslation : 0.0;
+        out_6d_var(1) = enableY ? sgn(values.ty) * offsetTranslation : 0.0;
+        out_6d_var(2) = enableZ ? sgn(values.tz) * offsetTranslation : 0.0;
     }
     else
     {
@@ -150,9 +158,9 @@ void SpaceNavOrocos::updateHook()
 
     if (!values.button2)
     {
-        out_6d_var(3) = sgn(values.rx) * offsetOrientation;
-        out_6d_var(4) = sgn(values.ry) * offsetOrientation;
-        out_6d_var(5) = sgn(values.rz) * offsetOrientation;
+        out_6d_var(3) = enableA ? sgn(values.rx) * offsetOrientation : 0.0;
+        out_6d_var(4) = enableB ? sgn(values.ry) * offsetOrientation : 0.0;
+        out_6d_var(5) = enableC ? sgn(values.rz) * offsetOrientation : 0.0;
     }
     else
     {
@@ -236,7 +244,14 @@ void SpaceNavOrocos::displayStatus()
     RTT::log(RTT::Error) << "[" << this->getName() << "] Info\n"
                          << "Listening to interface " << getFileDescriptor() << "\n"
                          << "Button 1 " << (!button1_old ? "Not pressed => Translation enabled" : "Pressed => Translation disabled") << "\n"
-                         << "Button 2 " << (!button2_old ? "Not pressed => Orientation enabled" : "Pressed => Orientation disabled") << RTT::endlog();
+                         << "Button 2 " << (!button2_old ? "Not pressed => Orientation enabled" : "Pressed => Orientation disabled") << "\n"
+                         << "enableX = " << enableX << "\n"
+                         << "enableY = " << enableY << "\n"
+                         << "enableZ = " << enableZ << "\n"
+                         << "enableA = " << enableA << "\n"
+                         << "enableB = " << enableB << "\n"
+                         << "enableC = " << enableC << "\n"
+                         << RTT::endlog();
 }
 
 ORO_CREATE_COMPONENT_LIBRARY()
