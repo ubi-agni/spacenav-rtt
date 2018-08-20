@@ -184,11 +184,9 @@ void SpaceNavOrocos::updateHook()
             return;
         }
 
-        // Eigen::AngleAxisf rollAngle(out_6d_var(3), Eigen::Vector3f::UnitX());
-        Eigen::AngleAxisf rollAngle(0.0, Eigen::Vector3f::UnitX());
+        Eigen::AngleAxisf rollAngle(out_6d_var(3), Eigen::Vector3f::UnitX());
         Eigen::AngleAxisf pitchAngle(out_6d_var(4), Eigen::Vector3f::UnitY());
-        Eigen::AngleAxisf yawAngle(0.0, Eigen::Vector3f::UnitZ());
-        // Eigen::AngleAxisf yawAngle(out_6d_var(5), Eigen::Vector3f::UnitZ());
+        Eigen::AngleAxisf yawAngle(out_6d_var(5), Eigen::Vector3f::UnitZ());
         Eigen::Quaternionf q = rollAngle * pitchAngle * yawAngle;
 
         Eigen::Quaternionf qBase = Eigen::Quaternionf(in_current_pose_var.rotation.rotation(0), in_current_pose_var.rotation.rotation(1), in_current_pose_var.rotation.rotation(2), in_current_pose_var.rotation.rotation(3));
