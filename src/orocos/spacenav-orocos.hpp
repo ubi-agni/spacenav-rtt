@@ -39,6 +39,12 @@ public:
 
   void displayStatus();
 
+  void resetOrientation(float w, float x, float y, float z);
+
+  void resetPoseToInitial();
+
+  void resetPose(rstrt::geometry::Pose pose);
+
 protected:
   cosima::hw::SpaceNavHID *interface;
 
@@ -51,7 +57,7 @@ protected:
   rstrt::geometry::Pose out_pose_var;
 
   RTT::InputPort<rstrt::geometry::Pose> in_current_pose_port;
-  rstrt::geometry::Pose in_current_pose_var;
+  rstrt::geometry::Pose in_current_pose_var, initial_pose_var;
   RTT::FlowStatus in_current_pose_flow;
 
 private:

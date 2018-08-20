@@ -6,6 +6,9 @@ using namespace cosima::hw;
 SpaceNavOrocos::SpaceNavOrocos(std::string const &name) : RTT::TaskContext(name), offsetTranslation(0.001), offsetOrientation(0.001), button1_old(false), button2_old(false), enableX(true), enableY(true), enableZ(true), enableA(true), enableB(true), enableC(true)
 {
     addOperation("displayStatus", &SpaceNavOrocos::displayStatus, this).doc("Display the current status of this component.");
+    addOperation("resetOrientation", &SpaceNavOrocos::resetOrientation, this).doc("Reset the orientation to new quaternion values.");
+    addOperation("resetPoseToInitial", &SpaceNavOrocos::resetPoseToInitial, this).doc("Reset the entire pose to the initial one.");
+    addOperation("resetPose", &SpaceNavOrocos::resetPose, this).doc("Reset the pose to a new one.");
 
     addProperty("offsetTranslation", offsetTranslation);
     addProperty("offsetOrientation", offsetOrientation);
@@ -59,6 +62,7 @@ bool SpaceNavOrocos::configureHook()
         this->ports()->removePort("in_current_pose_port");
     }
     in_current_pose_var = rstrt::geometry::Pose();
+    initial_pose_var = rstrt::geometry::Pose();
     in_current_pose_port.setName("in_current_pose_port");
     in_current_pose_port.doc("Input port for the current pose to which the commands should be added.");
     ports()->addPort(in_current_pose_port);
@@ -181,6 +185,7 @@ void SpaceNavOrocos::updateHook()
         {
             // get the ground truth only once!
             in_current_pose_flow = in_current_pose_port.read(in_current_pose_var);
+            initial_pose_var = in_current_pose_var;
             return;
         }
 
@@ -219,6 +224,24 @@ void SpaceNavOrocos::updateHook()
     // {
     //     roffsetTranslationd.axisValue[i] *= axisoffsetTranslations[i];
     // }
+}
+
+void SpaceNavOrocos::resetOrientation(float w, float x, float y, float z)
+{
+    out_pose_var.rotation.rotation(0) = w;
+    out_pose_var.rotation.rotation(1) = x;
+    out_pose_var.rotation.rotation(2) = y;
+    out_pose_var.rotation.rotation(3) = z;
+}
+
+void SpaceNavOrocos::resetPoseToInitial()
+{
+    in_current_pose_var = initial_pose_var;
+}
+
+void SpaceNavOrocos::resetPose(rstrt::geometry::Pose pose)
+{
+    in_current_pose_var = pose;
 }
 
 void SpaceNavOrocos::stopHook()
