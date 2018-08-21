@@ -3,22 +3,51 @@
 
 using namespace cosima::hw;
 
-SpaceNavOrocos::SpaceNavOrocos(std::string const &name) : RTT::TaskContext(name), offsetTranslation(0.001), offsetOrientation(0.001), button1_old(false), button2_old(false), enableX(true), enableY(true), enableZ(true), enableA(true), enableB(true), enableC(true), sensitivity(160)
+SpaceNavOrocos::SpaceNavOrocos(std::string const &name) : RTT::TaskContext(name),
+                                                          offsetTranslation(0.001),
+                                                          offsetOrientation(0.001),
+                                                          button1_old(false),
+                                                          button2_old(false),
+                                                          enableX(true),
+                                                          enableY(true),
+                                                          enableZ(true),
+                                                          enableA(true),
+                                                          enableB(true),
+                                                          enableC(true),
+                                                          sensitivity(160),
+                                                          cageMinX(0),
+                                                          cageMinY(0),
+                                                          cageMinZ(0),
+                                                          cageMaxX(0.5),
+                                                          cageMaxY(0.5),
+                                                          cageMaxZ(0.6),
+                                                          isCageActive(false)
 {
     addOperation("displayStatus", &SpaceNavOrocos::displayStatus, this).doc("Display the current status of this component.");
     addOperation("resetOrientation", &SpaceNavOrocos::resetOrientation, this).doc("Reset the orientation to new quaternion values.");
     addOperation("resetPoseToInitial", &SpaceNavOrocos::resetPoseToInitial, this).doc("Reset the entire pose to the initial one.");
     addOperation("resetPose", &SpaceNavOrocos::resetPose, this).doc("Reset the pose to a new one.");
+    addOperation("setInitialRotation", &SpaceNavOrocos::setInitialRotation, this).doc("Set the rotation before the component is started.");
 
     addProperty("sensitivity", sensitivity);
+
     addProperty("offsetTranslation", offsetTranslation);
     addProperty("offsetOrientation", offsetOrientation);
+
     addProperty("enableX", enableX);
     addProperty("enableY", enableY);
     addProperty("enableZ", enableZ);
     addProperty("enableA", enableA);
     addProperty("enableB", enableB);
     addProperty("enableC", enableC);
+
+    addProperty("cageMinX", cageMinX);
+    addProperty("cageMinY", cageMinY);
+    addProperty("cageMinZ", cageMinZ);
+    addProperty("cageMaxX", cageMaxX);
+    addProperty("cageMaxY", cageMaxY);
+    addProperty("cageMaxZ", cageMaxZ);
+    addProperty("isCageActive", isCageActive);
     interface = new SpaceNavHID();
 }
 
@@ -69,6 +98,8 @@ bool SpaceNavOrocos::configureHook()
     ports()->addPort(in_current_pose_port);
     in_current_pose_flow = RTT::NoData;
 
+    initial_rotation = rstrt::geometry::Rotation();
+
     values.reset();
     rawValues.reset();
 
@@ -89,8 +120,14 @@ int SpaceNavOrocos::getFileDescriptor()
     return interface->getFileDescriptor();
 }
 
+void SpaceNavOrocos::setInitialRotation(rstrt::geometry::Rotation ir)
+{
+    initial_rotation = ir;
+}
+
 bool SpaceNavOrocos::startHook()
 {
+    in_current_pose_flow = RTT::NoData;
     RTT::extras::FileDescriptorActivity *activity = getActivity<RTT::extras::FileDescriptorActivity>();
     if (activity)
     {
@@ -194,6 +231,10 @@ void SpaceNavOrocos::updateHook()
         {
             // get the ground truth only once!
             in_current_pose_flow = in_current_pose_port.read(in_current_pose_var);
+            if (!(initial_rotation.rotation.w() == 0 && initial_rotation.rotation.x() == 0 && initial_rotation.rotation.y() == 0 && initial_rotation.rotation.z() == 0))
+            {
+                in_current_pose_var.rotation = initial_rotation;
+            }
             initial_pose_var = in_current_pose_var;
             return;
         }
@@ -223,10 +264,46 @@ void SpaceNavOrocos::updateHook()
         out_pose_var.translation.translation(0) = in_current_pose_var.translation.translation(0) + out_6d_var(0);
         out_pose_var.translation.translation(1) = in_current_pose_var.translation.translation(1) + out_6d_var(1);
         out_pose_var.translation.translation(2) = in_current_pose_var.translation.translation(2) + out_6d_var(2);
+
+        if (isCageActive)
+        {
+            if (out_pose_var.translation.translation(0) < cageMinX)
+            {
+                out_pose_var.translation.translation(0) = cageMinX;
+            }
+            else if (out_pose_var.translation.translation(0) > cageMaxX)
+            {
+                out_pose_var.translation.translation(0) = cageMaxX;
+            }
+
+            if (out_pose_var.translation.translation(1) < cageMinY)
+            {
+                out_pose_var.translation.translation(1) = cageMinY;
+            }
+            else if (out_pose_var.translation.translation(1) > cageMaxY)
+            {
+                out_pose_var.translation.translation(1) = cageMaxY;
+            }
+
+            if (out_pose_var.translation.translation(2) < cageMinZ)
+            {
+                out_pose_var.translation.translation(2) = cageMinZ;
+            }
+            else if (out_pose_var.translation.translation(2) > cageMaxZ)
+            {
+                out_pose_var.translation.translation(2) = cageMaxZ;
+            }
+        }
+
         out_pose_var.rotation.rotation(0) = qBase.w();
         out_pose_var.rotation.rotation(1) = qBase.x();
         out_pose_var.rotation.rotation(2) = qBase.y();
         out_pose_var.rotation.rotation(3) = qBase.z();
+
+        // out_pose_var.rotation.rotation(0) = 0;
+        // out_pose_var.rotation.rotation(1) = 0;
+        // out_pose_var.rotation.rotation(2) = 1;
+        // out_pose_var.rotation.rotation(3) = 0;
 
         // save state to not return to the initially read pose.
         in_current_pose_var = out_pose_var;

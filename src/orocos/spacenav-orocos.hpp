@@ -11,6 +11,7 @@
 
 // // RST-RT
 #include <rst-rt/geometry/Pose.hpp>
+#include <rst-rt/geometry/Rotation.hpp>
 
 namespace cosima
 {
@@ -45,6 +46,8 @@ public:
 
   void resetPose(rstrt::geometry::Pose pose);
 
+  void setInitialRotation(rstrt::geometry::Rotation ir);
+
 protected:
   cosima::hw::SpaceNavHID *interface;
 
@@ -64,6 +67,8 @@ private:
   cosima::hw::SpaceNavValues values;
   cosima::hw::SpaceNavValues rawValues;
 
+  rstrt::geometry::Rotation initial_rotation;
+
   float offsetTranslation;
   float offsetOrientation;
 
@@ -72,6 +77,9 @@ private:
   bool enableX, enableY, enableZ, enableA, enableB, enableC;
 
   int sensitivity;
+
+  float cageMinX, cageMinY, cageMinZ, cageMaxX, cageMaxY, cageMaxZ;
+  bool isCageActive;
 };
 
 } // namespace hw
