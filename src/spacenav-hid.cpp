@@ -23,6 +23,26 @@
  *     Bielefeld University
  *
  * ============================================================ */
+
+/*
+spacenavd - a free software replacement driver for 6dof space-mice.
+Copyright (C) 2007-2018 John Tsiombikas <nuclear@member.fsf.org>
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+// Code from https://github.com/FreeSpacenav/spacenavd/blob/master/src/dev_usb_linux.c
+
 #include "spacenav-hid.hpp"
 
 #include <linux/input.h>
@@ -76,9 +96,9 @@ bool SpaceNavHID::init()
   mode = 0;
   struct dirent *entry;
   DIR *dp;
-  // char path[PATH_BUFFER_SIZE];
+
   input_id_td device_info;
-  // const char *devDirectory = "/dev/input/";
+
   std::string devDirectory = "/dev/input/";
   std::string path = devDirectory;
   const char *dev_event_file_name = "/dev/input/spacenavigator";
@@ -242,6 +262,34 @@ bool SpaceNavHID::init()
 
 bool SpaceNavHID::checkDeviceId(const int fd, input_id_td &device_info)
 {
+  /*
+  * Copyright (c) 2008, Jan Ciger (jan.ciger (at) gmail.com)
+  * All rights reserved.
+  *
+  * Redistribution and use in source and binary forms, with or without
+  * modification, are permitted provided that the following conditions are met:
+  *     * Redistributions of source code must retain the above copyright
+  *       notice, this list of conditions and the following disclaimer.
+  *     * Redistributions in binary form must reproduce the above copyright
+  *       notice, this list of conditions and the following disclaimer in the
+  *       documentation and/or other materials provided with the distribution.
+  *     * The name of its contributors may not be used to endorse or promote products
+  *       derived from this software without specific prior written permission.
+  *
+  * THIS SOFTWARE IS PROVIDED BY Jan Ciger ''AS IS'' AND ANY
+  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+  * DISCLAIMED. IN NO EVENT SHALL Jan Ciger BE LIABLE FOR ANY
+  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+  * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  */
+
+  // Code from https://github.com/janoc/libndofdev/blob/master/ndofdev.c#L101-L127
+
   ioctl(fd, EVIOCGID, &device_info);          // get device ID
   if (                                        //http://spacemice.org/index.php?title=Dev
       ((device_info.vendor == 0x046d) &&      // Logitech's Vendor ID, used by 3DConnexion until they got their own.
@@ -310,7 +358,7 @@ void SpaceNavHID::getValue(SpaceNavValues &coordinates, SpaceNavValues &rawValue
    * updated during a frame. This results in choppy and ugly animation.
    * To solve this we record the number of frames a certain DoF was idle
    * and only set the DoF to 0 if we reach a certain idleThreshold.
-   * When there is activity on a axis the idleFrameCount is reset to 0.
+   * When there is activity on an axis the idleFrameCount is reset to 0.
    */
   int i, eventCnt;
   /* how many bytes were read */
@@ -331,13 +379,13 @@ void SpaceNavHID::getValue(SpaceNavValues &coordinates, SpaceNavValues &rawValue
   }
 
   /* Increase all idle counts. They are later reset if there is activity */
-  for (i = 0; i < 6; ++i)
+  for (i = 0; i < 6; i++)
   {
-    ++idleFrameCount[i];
+    idleFrameCount[i]++;
   }
 
   /* handle input events sequentially */
-  for (i = 0; i < eventCnt; ++i)
+  for (i = 0; i < eventCnt; i++)
   {
 
     if (events[i].type == EV_SYN || events[i].type == EV_MSC)
@@ -391,7 +439,7 @@ void SpaceNavHID::getValue(SpaceNavValues &coordinates, SpaceNavValues &rawValue
     case EV_KEY:
     {
       int btn_index = events[i].code - BTN_0;
-      // switch
+
       if (btn_index == 0)
       {
         rawValues.button1 = events[i].value;
@@ -410,7 +458,6 @@ void SpaceNavHID::getValue(SpaceNavValues &coordinates, SpaceNavValues &rawValue
             // setLedState(1);
           }
         }
-        // Dead-man switch / trigger
       }
       else if (btn_index == 1)
       {
@@ -438,25 +485,6 @@ void SpaceNavHID::getValue(SpaceNavValues &coordinates, SpaceNavValues &rawValue
     }
   }
 
-  // /* Set rawValue to zero if DoF was idle for more than idleThreshold frames */
-  // for(i = 0; i < 6; ++i) {
-  //   if(idleFrameCount[i] >= idleThreshold) {
-  //     if(0==i) {
-  //       rawValues.tx = 0;
-  //     } else if (1==i) {
-  //       rawValues.ty = 0;
-  //     } else if (2==i) {
-  //       rawValues.tz = 0;
-  //     } else if (3==i) {
-  //       rawValues.rx = 0;
-  //     } else if (4==i) {
-  //       rawValues.ry = 0;
-  //     } else if (5==i) {
-  //       rawValues.rz = 0;
-  //     }
-  //   }
-  // }
-
   // translation
   coordinates.tx = -1 * getSlopedOutput(1, rawValues.tx);
   coordinates.ty = -1 * getSlopedOutput(0, rawValues.ty);
@@ -471,12 +499,10 @@ void SpaceNavHID::getValue(SpaceNavValues &coordinates, SpaceNavValues &rawValue
 
 double SpaceNavHID::getSlopedOutput(const int axisIndex, const double value)
 {
-  double output_end = 500;
-  double output_start = -500;
   double input_end = absinfo[axisIndex].maximum;
   double input_start = absinfo[axisIndex].minimum;
-  double slope = 1.0 * (output_end - output_start) / (input_end - input_start);
-  return output_start + floor((slope * (value - input_start)) + 0.5);
+  double slope = 1.0 * (DEF_MAXVAL - DEF_MINVAL) / (input_end - input_start);
+  return DEF_MINVAL + floor((slope * (value - input_start)) + 0.5);
 }
 
 bool SpaceNavHID::setLedState(const int state)
