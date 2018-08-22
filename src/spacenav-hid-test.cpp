@@ -23,6 +23,7 @@
  *     Bielefeld University
  *
  * ============================================================ */
+
 #include "spacenav-hid.hpp"
 #include <iostream>
 #include <stdlib.h>
@@ -31,10 +32,12 @@
 
 using namespace cosima::hw;
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv)
+{
 
-    if(argc != 1) {
-	    exit(0);
+    if (argc != 1)
+    {
+        exit(0);
     }
 
     SpaceNavHID *c = new SpaceNavHID();
@@ -42,9 +45,10 @@ int main(int argc, char** argv) {
     SpaceNavValues c1;
     SpaceNavValues c2;
 
-    while(1) {
-        c->getValue(c1,c2);
-        std::cout<< ">> x = " << c1.tx << ", y = " << c1.ty << ", z = " << c1.tz << ", rx = " << c1.rx << ", ry = " << c1.ry << ", rz = " << c1.rz  << ", b0 = " << c1.button1 << ", b1 = " << c1.button2 << std::endl;
+    while (1)
+    {
+        c->getValue(c1, c2);
+        std::cout << ">> x = " << c1.tx << ", y = " << c1.ty << ", z = " << c1.tz << ", rx = " << c1.rx << ", ry = " << c1.ry << ", rz = " << c1.rz << ", b0 = " << c1.button1 << ", b1 = " << c1.button2 << std::endl;
         usleep(4000);
     }
 }
