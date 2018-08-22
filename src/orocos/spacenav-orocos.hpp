@@ -35,9 +35,11 @@
 #include <Eigen/Dense>
 #include <Eigen/Core>
 
+#ifdef USE_RSTRT
 // RST-RT
 #include <rst-rt/geometry/Pose.hpp>
 #include <rst-rt/geometry/Rotation.hpp>
+#endif
 
 namespace cosima
 {
@@ -66,6 +68,7 @@ public:
 
   void displayStatus();
 
+#ifdef USE_RSTRT
   void resetOrientation(float w, float x, float y, float z);
 
   void resetPoseToInitial();
@@ -73,6 +76,7 @@ public:
   void resetPose(rstrt::geometry::Pose pose);
 
   void setInitialRotation(rstrt::geometry::Rotation ir);
+#endif
 
 protected:
   cosima::hw::SpaceNavHID *interface;
@@ -82,18 +86,22 @@ protected:
   RTT::OutputPort<Eigen::VectorXf> out_6d_port;
   Eigen::VectorXf out_6d_var;
 
+#ifdef USE_RSTRT
   RTT::OutputPort<rstrt::geometry::Pose> out_pose_port;
   rstrt::geometry::Pose out_pose_var;
 
   RTT::InputPort<rstrt::geometry::Pose> in_current_pose_port;
   rstrt::geometry::Pose in_current_pose_var, initial_pose_var;
   RTT::FlowStatus in_current_pose_flow;
+#endif
 
 private:
   cosima::hw::SpaceNavValues values;
   cosima::hw::SpaceNavValues rawValues;
 
+#ifdef USE_RSTRT
   rstrt::geometry::Rotation initial_rotation;
+#endif
 
   float offsetTranslation;
   float offsetOrientation;

@@ -39,8 +39,9 @@ if (OROCOS-RTT_FOUND)
   message(STATUS "USE_OROCOS_LIBRARIES: ${USE_OROCOS_LIBRARIES}")
   message(STATUS "OROCOS-RTT_LIBRARIES: ${OROCOS-RTT_LIBRARIES}")
 
-  find_package(RST-RT REQUIRED)
-  message(STATUS "RST-RT version: ${RST-RT_VERSION}")
+  find_package(RST-RT QUIET)
+  # message(STATUS "RST-RT found: ${RST-RT_FOUND}")
+  # message(STATUS "RST-RT version: ${RST-RT_VERSION}")
   message(STATUS "RST-RT_INCLUDE_DIRS: ${RST-RT_INCLUDE_DIRS}")
   message(STATUS "RST-RT_LIBRARY_DIRS: ${RST-RT_LIBRARY_DIRS}")
   message(STATUS "RST-RT_LIBRARY_DIR: ${RST-RT_LIBRARY_DIR}")
@@ -77,12 +78,25 @@ if (OROCOS-RTT_FOUND)
   orocos_component(spacenav-orocos "src/orocos/spacenav-orocos.cpp")
 
   set_target_properties(${BINARY_NAME_OROCOS} PROPERTIES COMPILE_DEFINITIONS RTT_COMPONENT)
-
-  target_link_libraries(${BINARY_NAME_OROCOS}
+  if (RST-RT_FOUND)
+    message(STATUS "######################################################")
+    message(STATUS "###             Using RSTRT Data Types!            ###")
+    message(STATUS "######################################################")
+    
+    target_compile_definitions(${BINARY_NAME_OROCOS} PRIVATE USE_RSTRT)
+    target_link_libraries(${BINARY_NAME_OROCOS}
     ${USE_OROCOS_LIBRARIES}
     ${OROCOS-RTT_LIBRARIES}
     ${RST-RT_LIBRARIES}
     ${LIBRARY_NAME}
   )
+  else()
+    target_link_libraries(${BINARY_NAME_OROCOS}
+    ${USE_OROCOS_LIBRARIES}
+    ${OROCOS-RTT_LIBRARIES}
+    ${LIBRARY_NAME}
+  )
+  endif()
+
   orocos_generate_package()
 endif()

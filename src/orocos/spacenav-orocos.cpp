@@ -50,10 +50,12 @@ SpaceNavOrocos::SpaceNavOrocos(std::string const &name) : RTT::TaskContext(name)
                                                           isCageActive(false)
 {
     addOperation("displayStatus", &SpaceNavOrocos::displayStatus, this).doc("Display the current status of this component.");
+#ifdef USE_RSTRT
     addOperation("resetOrientation", &SpaceNavOrocos::resetOrientation, this).doc("Reset the orientation to new quaternion values.");
     addOperation("resetPoseToInitial", &SpaceNavOrocos::resetPoseToInitial, this).doc("Reset the entire pose to the initial one.");
     addOperation("resetPose", &SpaceNavOrocos::resetPose, this).doc("Reset the pose to a new one.");
     addOperation("setInitialRotation", &SpaceNavOrocos::setInitialRotation, this).doc("Set the rotation before the component is started.");
+#endif
 
     addProperty("sensitivity", sensitivity);
 
@@ -103,6 +105,7 @@ bool SpaceNavOrocos::configureHook()
     out_6d_port.setDataSample(out_6d_var);
     ports()->addPort(out_6d_port);
 
+#ifdef USE_RSTRT
     if (this->getPort("out_pose_port"))
     {
         this->ports()->removePort("out_pose_port");
@@ -125,6 +128,7 @@ bool SpaceNavOrocos::configureHook()
     in_current_pose_flow = RTT::NoData;
 
     initial_rotation = rstrt::geometry::Rotation();
+#endif
 
     values.reset();
     rawValues.reset();
@@ -146,14 +150,18 @@ int SpaceNavOrocos::getFileDescriptor()
     return interface->getFileDescriptor();
 }
 
+#ifdef USE_RSTRT
 void SpaceNavOrocos::setInitialRotation(rstrt::geometry::Rotation ir)
 {
     initial_rotation = ir;
 }
+#endif
 
 bool SpaceNavOrocos::startHook()
 {
+#ifdef USE_RSTRT
     in_current_pose_flow = RTT::NoData;
+#endif
     RTT::extras::FileDescriptorActivity *activity = getActivity<RTT::extras::FileDescriptorActivity>();
     if (activity)
     {
@@ -245,6 +253,7 @@ void SpaceNavOrocos::updateHook()
         out_6d_var(5) = 0;
     }
 
+#ifdef USE_RSTRT
     if (!in_current_pose_port.connected())
     {
         // if we do not have a pose to add stuff to, we just return the stuff...
@@ -335,18 +344,10 @@ void SpaceNavOrocos::updateHook()
         in_current_pose_var = out_pose_var;
         out_pose_port.write(out_pose_var);
     }
-
-    // if (interface->getNumAxes() != axisoffsetTranslations.size()) {
-    //     // TODO send zero or just do not offsetTranslation ??
-    //     return;
-    // }
-
-    // for(size_t i = 0 ; i < axisoffsetTranslations.size(); i++)
-    // {
-    //     roffsetTranslationd.axisValue[i] *= axisoffsetTranslations[i];
-    // }
+#endif
 }
 
+#ifdef USE_RSTRT
 void SpaceNavOrocos::resetOrientation(float w, float x, float y, float z)
 {
     out_pose_var.rotation.rotation(0) = w;
@@ -364,6 +365,7 @@ void SpaceNavOrocos::resetPose(rstrt::geometry::Pose pose)
 {
     in_current_pose_var = pose;
 }
+#endif
 
 void SpaceNavOrocos::stopHook()
 {
