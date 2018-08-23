@@ -42,9 +42,9 @@ SpaceNavOrocos::SpaceNavOrocos(std::string const &name) : RTT::TaskContext(name)
                                                           enableC(true),
                                                           sensitivity(160),
                                                           cageMinX(0),
-                                                          cageMinY(0),
+                                                          cageMinY(-0.5),
                                                           cageMinZ(0),
-                                                          cageMaxX(0.5),
+                                                          cageMaxX(0.65),
                                                           cageMaxY(0.5),
                                                           cageMaxZ(0.6),
                                                           isCageActive(false)
