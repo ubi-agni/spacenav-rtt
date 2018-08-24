@@ -1,2 +1,2 @@
 # spacenav-rtt
-SpaceNav (3Dconnection) Driver for Linux using OROCOS-RTT
+SpaceNav (3Dconnection) Driver for Linux (Xenomai) using OROCOS-RTT
