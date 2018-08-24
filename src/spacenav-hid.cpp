@@ -89,7 +89,7 @@ int SpaceNavHID::getFileDescriptor()
   return fd;
 }
 
-bool SpaceNavHID::init()
+bool SpaceNavHID::initDevice()
 {
   btn_0_pressed = false;
   btn_1_pressed = false;
@@ -318,7 +318,7 @@ bool SpaceNavHID::checkDeviceId(const int fd, input_id_td &device_info)
   return false;
 }
 
-void SpaceNavHID::close()
+void SpaceNavHID::closeDevice()
 {
   if (fd > 0)
   {

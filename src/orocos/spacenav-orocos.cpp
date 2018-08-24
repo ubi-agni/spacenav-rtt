@@ -87,7 +87,7 @@ SpaceNavOrocos::SpaceNavOrocos(std::string const &name) : RTT::TaskContext(name)
 
 bool SpaceNavOrocos::configureHook()
 {
-    if (!interface->init())
+    if (!interface->initDevice())
     {
         RTT::log(RTT::Error) << "[" << this->getName() << "] "
                              << "Unable to access Space Nav at " << getFileDescriptor() << RTT::endlog();

@@ -93,9 +93,9 @@ public:
   SpaceNavHID();
   ~SpaceNavHID();
 
-  bool init();
+  bool initDevice();
 
-  void close();
+  void closeDevice();
 
   int getFileDescriptor();
 

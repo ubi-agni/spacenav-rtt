@@ -41,7 +41,7 @@ int main(int argc, char **argv)
     }
 
     SpaceNavHID *c = new SpaceNavHID();
-    c->init();
+    c->initDevice();
     SpaceNavValues c1;
     SpaceNavValues c2;
 
