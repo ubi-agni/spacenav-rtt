@@ -64,12 +64,39 @@ ADD_LIBRARY(${LIBRARY_NAME} SHARED
   src/spacenav-hid.cpp
 )
 
+find_package(Xenomai QUIET)
+# Allows to build for Xenomai
+if(XENOMAI_FOUND OR (DEFINED $ENV{OROCOS_TARGET} AND $ENV{OROCOS_TARGET} EQUAL "xenomai"))
+    message(STATUS "######################################################")
+    message(STATUS "###    Compiling for Xenomai ${XENOMAI_VERSION}!")
+    message(STATUS "###    with:")
+    message(STATUS "###         XENOMAI_RTDM_LIBRARIES   : ${XENOMAI_RTDM_LIBRARIES}")
+    message(STATUS "###         XENOMAI_RTDM_INCLUDE_DIRS: ${XENOMAI_RTDM_INCLUDE_DIRS}")
+    message(STATUS "###         XENOMAI_RTDM_CFLAGS      : ${XENOMAI_RTDM_CFLAGS}")
+    message(STATUS "######################################################")
+
+    # In Xenomai 3 it contains RTnet
+    include_directories(${XENOMAI_RTDM_INCLUDE_DIRS})
+    add_definitions(${XENOMAI_RTDM_CFLAGS})
+
+    # In Xenomai 2 we need the external RTnet
+    # if(${XENOMAI_VERSION_MAJOR} EQUAL 2)
+    #     find_package(RTnet REQUIRED)
+    #     include_directories(${RTNET_INCLUDE_DIRS})
+    # endif()
+
+    set_target_properties(${LIBRARY_NAME} PROPERTIES COMPILE_FLAGS -DXENOMAI_VERSION_MAJOR=${XENOMAI_VERSION_MAJOR})
+    target_link_libraries(${LIBRARY_NAME}
+      ${XENOMAI_RTDM_LIBRARIES}
+    )
+endif()
+
 ADD_EXECUTABLE(${LIBRARY_NAME}-test "src/spacenav-hid-test.cpp")
 TARGET_LINK_LIBRARIES(${LIBRARY_NAME}-test ${LIBRARY_NAME})
 
 if (OROCOS-RTT_FOUND)
   message(STATUS "######################################################")
-  message(STATUS "### Compiling OROCOS-RTT wrapper for SpaceNav HID! ###")
+  message(STATUS "### Compiling OROCOS-RTT wrapper for SpaceNav HID!")
   message(STATUS "######################################################")
   SET(BINARY_NAME_OROCOS "spacenav-orocos")
   include_directories(BEFORE SYSTEM
@@ -80,22 +107,22 @@ if (OROCOS-RTT_FOUND)
   set_target_properties(${BINARY_NAME_OROCOS} PROPERTIES COMPILE_DEFINITIONS RTT_COMPONENT)
   if (RST-RT_FOUND)
     message(STATUS "######################################################")
-    message(STATUS "###             Using RSTRT Data Types!            ###")
+    message(STATUS "###             Using RSTRT Data Types!")
     message(STATUS "######################################################")
     
     target_compile_definitions(${BINARY_NAME_OROCOS} PRIVATE USE_RSTRT)
     target_link_libraries(${BINARY_NAME_OROCOS}
-    ${USE_OROCOS_LIBRARIES}
-    ${OROCOS-RTT_LIBRARIES}
-    ${RST-RT_LIBRARIES}
-    ${LIBRARY_NAME}
-  )
+      ${USE_OROCOS_LIBRARIES}
+      ${OROCOS-RTT_LIBRARIES}
+      ${RST-RT_LIBRARIES}
+      ${LIBRARY_NAME}
+    )
   else()
     target_link_libraries(${BINARY_NAME_OROCOS}
-    ${USE_OROCOS_LIBRARIES}
-    ${OROCOS-RTT_LIBRARIES}
-    ${LIBRARY_NAME}
-  )
+      ${USE_OROCOS_LIBRARIES}
+      ${OROCOS-RTT_LIBRARIES}
+      ${LIBRARY_NAME}
+    )
   endif()
 
   orocos_generate_package()

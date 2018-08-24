@@ -58,6 +58,32 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef XENOMAI_VERSION_MAJOR
+
+#define rt_dev_open open
+#define rt_dev_close close
+#define rt_dev_read read
+#define rt_dev_write write
+#define rt_dev_ioctl ioctl
+
+#else
+
+// #if XENOMAI_VERSION_MAJOR == 2
+#include <rtdm/rtdm.h>
+// #endif
+
+// Xenomai 3 : RTnet is included
+// #if XENOMAI_VERSION_MAJOR == 3
+// not sure how to habdle #include <rtdm/rtdm.h> in this case?
+// #define rt_dev_open open
+// #define rt_dev_close close
+// #define rt_dev_read read
+// #define rt_dev_write write
+// #define rt_dev_ioctl ioctl
+// #endif
+
+#endif
+
 #define PATH_BUFFER_SIZE (1024)
 
 #define DEF_MINVAL (-500)
@@ -81,7 +107,7 @@ SpaceNavHID::SpaceNavHID()
 
 SpaceNavHID::~SpaceNavHID()
 {
-  close();
+  closeDevice();
 }
 
 int SpaceNavHID::getFileDescriptor()
@@ -106,12 +132,12 @@ bool SpaceNavHID::initDevice()
   // Try backup Symlink first.
   std::cout << "[SpaceNavHID] "
             << "Searching for device on " << dev_event_file_name << std::endl;
-  fd = open(dev_event_file_name, O_RDWR | O_NONBLOCK);
+  fd = rt_dev_open(dev_event_file_name, O_RDWR | O_NONBLOCK);
   if ((fd > -1) && checkDeviceId(fd, device_info))
   {
     std::cout << "[SpaceNavHID] "
               << "Using evdev device: " << dev_event_file_name << std::endl;
-    ::close(fd);
+    rt_dev_close(fd);
     mode = determineDeviceMode(dev_event_file_name);
     if (mode == -1)
     {
@@ -140,7 +166,7 @@ bool SpaceNavHID::initDevice()
       path.append(entry->d_name);
       std::cout << "[SpaceNavHID] "
                 << "Checking " << path << " ... ";
-      fd = open(path.c_str(), O_RDONLY | O_NONBLOCK);
+      fd = rt_dev_open(path.c_str(), O_RDONLY | O_NONBLOCK);
       if (-1 == fd)
       {
         std::cout << "[SpaceNavHID] "
@@ -158,7 +184,7 @@ bool SpaceNavHID::initDevice()
       }
       std::cout << "[SpaceNavHID] "
                 << "Vendor and ID do not match." << std::endl;
-      ::close(fd);
+      rt_dev_close(fd);
       fd = -1;
     }
     closedir(dp);
@@ -170,7 +196,7 @@ bool SpaceNavHID::initDevice()
       return false;
     }
     // needed for the next checks.
-    ::close(fd);
+    rt_dev_close(fd);
     mode = determineDeviceMode(dev_event_file_name);
     if (mode == -1)
     {
@@ -185,7 +211,7 @@ bool SpaceNavHID::initDevice()
   std::cout << "[SpaceNavHID] "
             << "Checking for available axes (expecting " << num_axes << ") ... ";
   unsigned char evtype_mask[(EV_MAX + 7) / 8];
-  if (ioctl(fd, EVIOCGBIT(EV_ABS, sizeof evtype_mask), evtype_mask) == 0)
+  if (rt_dev_ioctl(fd, EVIOCGBIT(EV_ABS, sizeof evtype_mask), evtype_mask) == 0)
   {
     num_axes = 0;
     for (int i = 0; i < ABS_CNT; i++)
@@ -225,33 +251,33 @@ bool SpaceNavHID::initDevice()
   }
 
   // translation
-  if (ioctl(fd, EVIOCGABS(ABS_X), &(absinfo[0])) == 0)
+  if (rt_dev_ioctl(fd, EVIOCGABS(ABS_X), &(absinfo[0])) == 0)
   {
     std::cout << "[SpaceNavHID] "
               << "Axis X ABS range: [ " << absinfo[0].minimum << " - " << absinfo[0].maximum << " ] at " << absinfo[0].fuzz << std::endl;
   }
-  if (ioctl(fd, EVIOCGABS(ABS_Y), &(absinfo[1])) == 0)
+  if (rt_dev_ioctl(fd, EVIOCGABS(ABS_Y), &(absinfo[1])) == 0)
   {
     std::cout << "[SpaceNavHID] "
               << "Axis Y ABS range: [ " << absinfo[1].minimum << " - " << absinfo[1].maximum << " ] at " << absinfo[1].fuzz << std::endl;
   }
-  if (ioctl(fd, EVIOCGABS(ABS_Z), &(absinfo[2])) == 0)
+  if (rt_dev_ioctl(fd, EVIOCGABS(ABS_Z), &(absinfo[2])) == 0)
   {
     std::cout << "[SpaceNavHID] "
               << "Axis Z ABS range: [ " << absinfo[2].minimum << " - " << absinfo[2].maximum << " ] at " << absinfo[2].fuzz << std::endl;
   }
   // rotation
-  if (ioctl(fd, EVIOCGABS(ABS_RX), &(absinfo[3])) == 0)
+  if (rt_dev_ioctl(fd, EVIOCGABS(ABS_RX), &(absinfo[3])) == 0)
   {
     std::cout << "[SpaceNavHID] "
               << "Axis RX ABS range: [ " << absinfo[3].minimum << " - " << absinfo[3].maximum << " ] at " << absinfo[3].fuzz << std::endl;
   }
-  if (ioctl(fd, EVIOCGABS(ABS_RX), &(absinfo[4])) == 0)
+  if (rt_dev_ioctl(fd, EVIOCGABS(ABS_RX), &(absinfo[4])) == 0)
   {
     std::cout << "[SpaceNavHID] "
               << "Axis RY ABS range: [ " << absinfo[4].minimum << " - " << absinfo[4].maximum << " ] at " << absinfo[4].fuzz << std::endl;
   }
-  if (ioctl(fd, EVIOCGABS(ABS_RX), &(absinfo[5])) == 0)
+  if (rt_dev_ioctl(fd, EVIOCGABS(ABS_RX), &(absinfo[5])) == 0)
   {
     std::cout << "[SpaceNavHID] "
               << "Axis RZ ABS range: [ " << absinfo[5].minimum << " - " << absinfo[5].maximum << " ] at " << absinfo[5].fuzz << std::endl;
@@ -290,7 +316,7 @@ bool SpaceNavHID::checkDeviceId(const int fd, input_id_td &device_info)
 
   // Code from https://github.com/janoc/libndofdev/blob/master/ndofdev.c#L101-L127
 
-  ioctl(fd, EVIOCGID, &device_info);          // get device ID
+  rt_dev_ioctl(fd, EVIOCGID, &device_info);   // get device ID
   if (                                        //http://spacemice.org/index.php?title=Dev
       ((device_info.vendor == 0x046d) &&      // Logitech's Vendor ID, used by 3DConnexion until they got their own.
        (                                      //(ID.product == 0xc603) || // SpaceMouse (untested)
@@ -322,7 +348,7 @@ void SpaceNavHID::closeDevice()
 {
   if (fd > 0)
   {
-    ::close(fd);
+    rt_dev_close(fd);
   }
   fd = -1;
 }
@@ -330,9 +356,9 @@ void SpaceNavHID::closeDevice()
 int SpaceNavHID::determineDeviceMode(const char *device_path)
 {
   int device_fd = -1;
-  if ((device_fd = open(device_path, O_RDWR)) == -1)
+  if ((device_fd = rt_dev_open(device_path, O_RDWR)) == -1)
   {
-    if ((device_fd = open(device_path, O_RDONLY)) == -1)
+    if ((device_fd = rt_dev_open(device_path, O_RDONLY)) == -1)
     {
       perror("opening the file you specified");
       return -1;
@@ -370,7 +396,7 @@ void SpaceNavHID::getValue(SpaceNavValues &coordinates, SpaceNavValues &rawValue
   // int idleThreshold = 3;
 
   /* read the raw event data from the device */
-  bytesRead = read(fd, events, sizeof(struct input_event) * 64);
+  bytesRead = rt_dev_read(fd, events, sizeof(struct input_event) * 64);
   eventCnt = (int)((long)bytesRead / (long)sizeof(struct input_event));
   if (bytesRead < (int)sizeof(struct input_event))
   {
@@ -517,7 +543,7 @@ bool SpaceNavHID::setLedState(const int state)
   evLed.code = LED_MISC;
   evLed.value = state; // on 1 / off 0
 
-  if (write(fd, &evLed, sizeof evLed) == -1)
+  if (rt_dev_write(fd, &evLed, sizeof evLed) == -1)
   {
     return false;
   }
