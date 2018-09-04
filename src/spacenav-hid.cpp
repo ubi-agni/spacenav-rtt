@@ -133,6 +133,8 @@ bool SpaceNavHID::initDevice()
   std::cout << "[SpaceNavHID] "
             << "Searching for device on " << dev_event_file_name << std::endl;
   fd = rt_dev_open(dev_event_file_name, O_RDWR | O_NONBLOCK);
+  std::cout << "fd = " << fd << std::endl;
+  std::cout << "checkDeviceId(fd, device_info) = " << checkDeviceId(fd, device_info) << std::endl;
   if ((fd > -1) && checkDeviceId(fd, device_info))
   {
     std::cout << "[SpaceNavHID] "
@@ -315,6 +317,8 @@ bool SpaceNavHID::checkDeviceId(const int fd, input_id_td &device_info)
   */
 
   // Code from https://github.com/janoc/libndofdev/blob/master/ndofdev.c#L101-L127
+
+  std::cout << "check vendor " << device_info.vendor << " and product " << device_info.product << std::endl;
 
   rt_dev_ioctl(fd, EVIOCGID, &device_info);   // get device ID
   if (                                        //http://spacemice.org/index.php?title=Dev
