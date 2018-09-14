@@ -41,16 +41,32 @@ if (OROCOS-RTT_FOUND)
   message(STATUS "USE_OROCOS_LIBRARIES: ${USE_OROCOS_LIBRARIES}")
   message(STATUS "OROCOS-RTT_LIBRARIES: ${OROCOS-RTT_LIBRARIES}")
 
+  # find RST-RT
   find_package(RST-RT QUIET)
-  # message(STATUS "RST-RT found: ${RST-RT_FOUND}")
-  # message(STATUS "RST-RT version: ${RST-RT_VERSION}")
-  message(STATUS "RST-RT_INCLUDE_DIRS: ${RST-RT_INCLUDE_DIRS}")
-  message(STATUS "RST-RT_LIBRARY_DIRS: ${RST-RT_LIBRARY_DIRS}")
-  message(STATUS "RST-RT_LIBRARY_DIR: ${RST-RT_LIBRARY_DIR}")
-  message(STATUS "RST-RT_LIBRARIES: ${RST-RT_LIBRARIES}")
-  include_directories(BEFORE SYSTEM ${RST-RT_INCLUDE_DIRS})
-  add_definitions(${RST-RT_CFLAGS})
-  link_directories(${RST-RT_LIBRARY_DIR} ${RST-RT_LIBRARY_DIRS})
+  if (RST-RT_FOUND)
+    # message(STATUS "RST-RT found: ${RST-RT_FOUND}")
+    # message(STATUS "RST-RT version: ${RST-RT_VERSION}")
+    message(STATUS "RST-RT_INCLUDE_DIRS: ${RST-RT_INCLUDE_DIRS}")
+    message(STATUS "RST-RT_LIBRARY_DIRS: ${RST-RT_LIBRARY_DIRS}")
+    message(STATUS "RST-RT_LIBRARY_DIR: ${RST-RT_LIBRARY_DIR}")
+    message(STATUS "RST-RT_LIBRARIES: ${RST-RT_LIBRARIES}")
+    include_directories(BEFORE SYSTEM ${RST-RT_INCLUDE_DIRS})
+    add_definitions(${RST-RT_CFLAGS})
+    link_directories(${RST-RT_LIBRARY_DIR} ${RST-RT_LIBRARY_DIRS})
+  endif()
+
+  # find ROS messages
+  find_package(catkin QUIET COMPONENTS geometry_msgs eigen_conversions)
+  if (catkin_FOUND)
+    message(STATUS "catkin found")
+    catkin_package(
+      DEPENDS
+      CATKIN_DEPENDS geometry_msgs eigen_conversions
+      LIBRARIES
+      INCLUDE_DIRS
+    )
+    include_directories(${catkin_INCLUDE_DIRS})
+  endif()
 endif()
 
 #set (Eigen_INCLUDE_DIRS "/usr/include/eigen3")
@@ -108,6 +124,10 @@ if (OROCOS-RTT_FOUND)
   include_directories(BEFORE SYSTEM
     src/orocos
   )
+  
+  find_package(Eigen3 REQUIRED)
+  include_directories(${EIGEN3_INCLUDE_DIR})
+  
   orocos_component(spacenav-orocos "src/orocos/spacenav-orocos.cpp")
 
   set_target_properties(${BINARY_NAME_OROCOS} PROPERTIES COMPILE_DEFINITIONS RTT_COMPONENT)
@@ -120,16 +140,35 @@ if (OROCOS-RTT_FOUND)
     target_link_libraries(${BINARY_NAME_OROCOS}
       ${USE_OROCOS_LIBRARIES}
       ${OROCOS-RTT_LIBRARIES}
+      ${Eigen_LIBRARIES}
       ${RST-RT_LIBRARIES}
       ${LIBRARY_NAME}
     )
   else()
-    target_link_libraries(${BINARY_NAME_OROCOS}
-      ${USE_OROCOS_LIBRARIES}
-      ${OROCOS-RTT_LIBRARIES}
-      ${LIBRARY_NAME}
-    )
+    if (catkin_FOUND)
+      target_compile_definitions(${BINARY_NAME_OROCOS} PRIVATE USE_ROS)
+      add_dependencies(${BINARY_NAME_OROCOS} ${catkin_EXPORTED_TARGETS})
+      target_link_libraries(${BINARY_NAME_OROCOS} 
+        ${USE_OROCOS_LIBRARIES}
+        ${OROCOS-RTT_LIBRARIES}
+        ${Eigen_LIBRARIES}
+        ${catkin_LIBRARIES}
+        ${LIBRARY_NAME}
+      )
+    else()
+      target_link_libraries(${BINARY_NAME_OROCOS}
+        ${USE_OROCOS_LIBRARIES}
+        ${OROCOS-RTT_LIBRARIES}
+        ${LIBRARY_NAME}
+      )
+    endif()
   endif()
 
-  orocos_generate_package()
+  if (catkin_FOUND)
+    orocos_generate_package(DEPENDS_TARGETS rtt_roscomm rtt_geometry_msgs)
+  else()
+    orocos_generate_package()
+  endif()
+  
+  
 endif()

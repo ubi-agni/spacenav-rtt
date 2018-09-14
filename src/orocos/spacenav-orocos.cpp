@@ -50,14 +50,17 @@ SpaceNavOrocos::SpaceNavOrocos(std::string const &name) : RTT::TaskContext(name)
                                                           isCageActive(false)
 {
     addOperation("displayStatus", &SpaceNavOrocos::displayStatus, this).doc("Display the current status of this component.");
-#ifdef USE_RSTRT
+#if defined USE_RSTRT || defined USE_ROS
     addOperation("resetOrientation", &SpaceNavOrocos::resetOrientation, this).doc("Reset the orientation to new quaternion values.");
     addOperation("resetPoseToInitial", &SpaceNavOrocos::resetPoseToInitial, this).doc("Reset the entire pose to the initial one.");
     addOperation("resetPose", &SpaceNavOrocos::resetPose, this).doc("Reset the pose to a new one.");
     addOperation("setInitialRotation", &SpaceNavOrocos::setInitialRotation, this).doc("Set the rotation before the component is started.");
 #endif
 
+    addProperty("devicePath", devicePath).doc("devicePath, (default: /dev/input/spacenavigator)");
+
     addProperty("sensitivity", sensitivity);
+    
 
     addProperty("offsetTranslation", offsetTranslation);
     addProperty("offsetOrientation", offsetOrientation);
@@ -76,7 +79,9 @@ SpaceNavOrocos::SpaceNavOrocos(std::string const &name) : RTT::TaskContext(name)
     addProperty("cageMaxY", cageMaxY);
     addProperty("cageMaxZ", cageMaxZ);
     addProperty("isCageActive", isCageActive);
+
     interface = new SpaceNavHID();
+
 }
 
 // SpaceNavOrocos::~SpaceNavOrocos() {
@@ -87,7 +92,17 @@ SpaceNavOrocos::SpaceNavOrocos(std::string const &name) : RTT::TaskContext(name)
 
 bool SpaceNavOrocos::configureHook()
 {
-    if (!interface->initDevice())
+    bool interface_configured = false;
+    if (!devicePath.empty())
+    {
+      interface_configured  = interface->initDevice(devicePath.c_str());
+    }
+    else
+    {
+      interface_configured = interface->initDevice();
+    }
+
+    if (!interface_configured)
     {
         RTT::log(RTT::Error) << "[" << this->getName() << "] "
                              << "Unable to access Space Nav at " << getFileDescriptor() << RTT::endlog();
@@ -105,12 +120,12 @@ bool SpaceNavOrocos::configureHook()
     out_6d_port.setDataSample(out_6d_var);
     ports()->addPort(out_6d_port);
 
-#ifdef USE_RSTRT
+#if defined USE_RSTRT || defined USE_ROS
     if (this->getPort("out_pose_port"))
     {
         this->ports()->removePort("out_pose_port");
     }
-    out_pose_var = rstrt::geometry::Pose();
+    out_pose_var = SpaceNavMsgPose();
     out_pose_port.setName("out_pose_port");
     out_pose_port.doc("Output port for pose command vector");
     out_pose_port.setDataSample(out_pose_var);
@@ -120,14 +135,14 @@ bool SpaceNavOrocos::configureHook()
     {
         this->ports()->removePort("in_current_pose_port");
     }
-    in_current_pose_var = rstrt::geometry::Pose();
-    initial_pose_var = rstrt::geometry::Pose();
+    in_current_pose_var = SpaceNavMsgPose();
+    initial_pose_var = SpaceNavMsgPose();
     in_current_pose_port.setName("in_current_pose_port");
     in_current_pose_port.doc("Input port for the current pose to which the commands should be added.");
     ports()->addPort(in_current_pose_port);
     in_current_pose_flow = RTT::NoData;
 
-    initial_rotation = rstrt::geometry::Rotation();
+    initial_rotation = SpaceNavMsgRot();
 #endif
 
     values.reset();
@@ -150,8 +165,8 @@ int SpaceNavOrocos::getFileDescriptor()
     return interface->getFileDescriptor();
 }
 
-#ifdef USE_RSTRT
-void SpaceNavOrocos::setInitialRotation(rstrt::geometry::Rotation ir)
+#if defined USE_RSTRT || defined USE_ROS
+void SpaceNavOrocos::setInitialRotation(SpaceNavMsgRot ir)
 {
     initial_rotation = ir;
 }
@@ -159,7 +174,7 @@ void SpaceNavOrocos::setInitialRotation(rstrt::geometry::Rotation ir)
 
 bool SpaceNavOrocos::startHook()
 {
-#ifdef USE_RSTRT
+#if defined USE_RSTRT || defined USE_ROS
     in_current_pose_flow = RTT::NoData;
 #endif
     RTT::extras::FileDescriptorActivity *activity = getActivity<RTT::extras::FileDescriptorActivity>();
@@ -184,76 +199,9 @@ int sgn(T val)
     return (T(0) < val) - (val < T(0));
 }
 
-void SpaceNavOrocos::updateHook()
-{
-    interface->getValue(values, rawValues);
-
-    // adjust sensitivity
-    values.tx = fabs(values.tx) > sensitivity ? values.tx : 0.0;
-    values.ty = fabs(values.ty) > sensitivity ? values.ty : 0.0;
-    values.tz = fabs(values.tz) > sensitivity ? values.tz : 0.0;
-    values.rx = fabs(values.rx) > sensitivity ? values.rx : 0.0;
-    values.ry = fabs(values.ry) > sensitivity ? values.ry : 0.0;
-    values.rz = fabs(values.rz) > sensitivity ? values.rz : 0.0;
-
-    // TODO do some scaling!
-    if (values.button1 != button1_old)
-    {
-        button1_old = values.button1;
-        if (!button1_old)
-        {
-            RTT::log(RTT::Error) << "[" << this->getName() << "] "
-                                 << "Enabled translation change." << RTT::endlog();
-        }
-        else
-        {
-            RTT::log(RTT::Error) << "[" << this->getName() << "] "
-                                 << "Disabled translation change." << RTT::endlog();
-        }
-    }
-
-    if (values.button2 != button2_old)
-    {
-        button2_old = values.button2;
-        if (!button2_old)
-        {
-            RTT::log(RTT::Error) << "[" << this->getName() << "] "
-                                 << "Enabled orientation change." << RTT::endlog();
-        }
-        else
-        {
-            RTT::log(RTT::Error) << "[" << this->getName() << "] "
-                                 << "Disabled orientation change." << RTT::endlog();
-        }
-    }
-
-    if (!values.button1)
-    {
-        out_6d_var(0) = enableX ? sgn(values.tx) * offsetTranslation : 0.0;
-        out_6d_var(1) = enableY ? sgn(values.ty) * offsetTranslation : 0.0;
-        out_6d_var(2) = enableZ ? sgn(values.tz) * offsetTranslation : 0.0;
-    }
-    else
-    {
-        out_6d_var(0) = 0;
-        out_6d_var(1) = 0;
-        out_6d_var(2) = 0;
-    }
-
-    if (!values.button2)
-    {
-        out_6d_var(3) = enableA ? sgn(values.rx) * offsetOrientation : 0.0;
-        out_6d_var(4) = enableB ? sgn(values.ry) * offsetOrientation : 0.0;
-        out_6d_var(5) = enableC ? sgn(values.rz) * offsetOrientation : 0.0;
-    }
-    else
-    {
-        out_6d_var(3) = 0;
-        out_6d_var(4) = 0;
-        out_6d_var(5) = 0;
-    }
-
 #ifdef USE_RSTRT
+void SpaceNavOrocos::process_rstrst()
+{
     if (!in_current_pose_port.connected())
     {
         // if we do not have a pose to add stuff to, we just return the stuff...
@@ -344,7 +292,182 @@ void SpaceNavOrocos::updateHook()
         in_current_pose_var = out_pose_var;
         out_pose_port.write(out_pose_var);
     }
+}
 #endif
+
+#ifdef USE_ROS
+void SpaceNavOrocos::process_ros()
+{
+    if (!in_current_pose_port.connected())
+    {
+        // if we do not have a pose to add stuff to, we just return the stuff...
+        out_6d_port.write(out_6d_var);
+    }
+    else
+    {
+        // if we do have a pose, we treat our values as new delta!
+        if (in_current_pose_flow == RTT::NoData)
+        {
+            // get the ground truth only once!
+            in_current_pose_flow = in_current_pose_port.read(in_current_pose_var);
+            RTT::log(RTT::Warning) << "initial position received " << RTT::endlog();
+            if (!(initial_rotation.w == 0 && initial_rotation.x == 0 && initial_rotation.y == 0 && initial_rotation.z == 0))
+            {
+                in_current_pose_var.orientation = initial_rotation;
+            }
+            initial_pose_var = in_current_pose_var;
+            return;
+        }
+
+        //TODO find equivalent of that
+        //Eigen::Quaternionf q = out_pose_var.rotation.euler2Quaternion(out_6d_var(3), out_6d_var(4), out_6d_var(5));
+
+        //TODO remove this if equivalent is found
+        Eigen::AngleAxisd rollAngle(out_6d_var(3), Eigen::Vector3d::UnitX());
+        Eigen::AngleAxisd pitchAngle(out_6d_var(4), Eigen::Vector3d::UnitY());
+        Eigen::AngleAxisd yawAngle(out_6d_var(5), Eigen::Vector3d::UnitZ());
+        Eigen::Quaterniond q = rollAngle * pitchAngle * yawAngle;
+
+        // Eigen::Quaternionf qBase = Eigen::Quaternionf(in_current_pose_var.rotation.rotation(0), in_current_pose_var.rotation.rotation(1), in_current_pose_var.rotation.rotation(2), in_current_pose_var.rotation.rotation(3));
+        Eigen::Quaterniond qBase;
+        tf::quaternionMsgToEigen(in_current_pose_var.orientation, qBase);
+        //qBase.w() = in_current_pose_var.rotation.w;
+        //qBase.x() = in_current_pose_var.rotation.x;
+        //qBase.y() = in_current_pose_var.rotation.y;
+        //qBase.z() = in_current_pose_var.rotation.z;
+        q.normalize();
+        qBase.normalize();
+        RTT::log(RTT::Debug)
+         << "q     = " << q.w() << ", " << q.x() << ", " << q.y() << ", " << q.z() << RTT::endlog();
+        RTT::log(RTT::Debug) << "qBase = " << qBase.w() << ", " << qBase.x() << ", " << qBase.y() << ", " << qBase.z() << RTT::endlog();
+        qBase *= q;
+        RTT::log(RTT::Debug) << "resul = " << qBase.w() << ", " << qBase.x() << ", " << qBase.y() << ", " << qBase.z() << RTT::endlog();
+
+        out_pose_var.position.x = in_current_pose_var.position.x + out_6d_var(0);
+        out_pose_var.position.y = in_current_pose_var.position.y + out_6d_var(1);
+        out_pose_var.position.z = in_current_pose_var.position.z + out_6d_var(2);
+
+        if (isCageActive)
+        {
+            if (out_pose_var.position.x < cageMinX)
+            {
+                out_pose_var.position.x = cageMinX;
+            }
+            else if (out_pose_var.position.x > cageMaxX)
+            {
+                out_pose_var.position.x = cageMaxX;
+            }
+
+            if (out_pose_var.position.y < cageMinY)
+            {
+                out_pose_var.position.y = cageMinY;
+            }
+            else if (out_pose_var.position.y > cageMaxY)
+            {
+                out_pose_var.position.y = cageMaxY;
+            }
+
+            if (out_pose_var.position.z < cageMinZ)
+            {
+                out_pose_var.position.z = cageMinZ;
+            }
+            else if (out_pose_var.position.z > cageMaxZ)
+            {
+                out_pose_var.position.z = cageMaxZ;
+            }
+        }
+
+        //out_pose_var.rotation.w = qBase.w();
+        //out_pose_var.rotation.x = qBase.x();
+        //out_pose_var.rotation.y = qBase.y();
+        //out_pose_var.rotation.z = qBase.z();
+        tf::quaternionEigenToMsg(qBase, out_pose_var.orientation);
+
+        // save state to not return to the initially read pose.
+        in_current_pose_var = out_pose_var;
+        out_pose_port.write(out_pose_var);
+    }
+}
+#endif
+
+void SpaceNavOrocos::updateHook()
+{
+    RTT::log(RTT::Debug) << "[" << this->getName() << "] "
+                                 << "Some activity detected." << RTT::endlog();
+    interface->getValue(values, rawValues);
+
+    // adjust sensitivity
+    values.tx = fabs(values.tx) > sensitivity ? values.tx : 0.0;
+    values.ty = fabs(values.ty) > sensitivity ? values.ty : 0.0;
+    values.tz = fabs(values.tz) > sensitivity ? values.tz : 0.0;
+    values.rx = fabs(values.rx) > sensitivity ? values.rx : 0.0;
+    values.ry = fabs(values.ry) > sensitivity ? values.ry : 0.0;
+    values.rz = fabs(values.rz) > sensitivity ? values.rz : 0.0;
+
+    // TODO do some scaling!
+    if (values.button1 != button1_old)
+    {
+        button1_old = values.button1;
+        if (!button1_old)
+        {
+            RTT::log(RTT::Warning) << "[" << this->getName() << "] "
+                                 << "Enabled translation change." << RTT::endlog();
+        }
+        else
+        {
+            RTT::log(RTT::Warning) << "[" << this->getName() << "] "
+                                 << "Disabled translation change." << RTT::endlog();
+        }
+    }
+
+    if (values.button2 != button2_old)
+    {
+        button2_old = values.button2;
+        if (!button2_old)
+        {
+            RTT::log(RTT::Warning) << "[" << this->getName() << "] "
+                                 << "Enabled orientation change." << RTT::endlog();
+        }
+        else
+        {
+            RTT::log(RTT::Warning) << "[" << this->getName() << "] "
+                                 << "Disabled orientation change." << RTT::endlog();
+        }
+    }
+
+    if (!values.button1)
+    {
+        out_6d_var(0) = enableX ? sgn(values.tx) * offsetTranslation : 0.0;
+        out_6d_var(1) = enableY ? sgn(values.ty) * offsetTranslation : 0.0;
+        out_6d_var(2) = enableZ ? sgn(values.tz) * offsetTranslation : 0.0;
+    }
+    else
+    {
+        out_6d_var(0) = 0;
+        out_6d_var(1) = 0;
+        out_6d_var(2) = 0;
+    }
+
+    if (!values.button2)
+    {
+        out_6d_var(3) = enableA ? sgn(values.rx) * offsetOrientation : 0.0;
+        out_6d_var(4) = enableB ? sgn(values.ry) * offsetOrientation : 0.0;
+        out_6d_var(5) = enableC ? sgn(values.rz) * offsetOrientation : 0.0;
+    }
+    else
+    {
+        out_6d_var(3) = 0;
+        out_6d_var(4) = 0;
+        out_6d_var(5) = 0;
+    }
+
+#ifdef USE_RSTRT
+    process_rstrt();
+#endif
+#ifdef USE_ROS
+    process_ros();
+#endif
+
 }
 
 #ifdef USE_RSTRT
@@ -355,13 +478,25 @@ void SpaceNavOrocos::resetOrientation(float w, float x, float y, float z)
     out_pose_var.rotation.rotation(2) = y;
     out_pose_var.rotation.rotation(3) = z;
 }
+#endif
 
+#ifdef USE_ROS
+void SpaceNavOrocos::resetOrientation(float w, float x, float y, float z)
+{
+    out_pose_var.orientation.w = w;
+    out_pose_var.orientation.x = x;
+    out_pose_var.orientation.y = y;
+    out_pose_var.orientation.z = z;
+}
+#endif
+
+#if defined USE_RSTRT || defined USE_ROS
 void SpaceNavOrocos::resetPoseToInitial()
 {
     in_current_pose_var = initial_pose_var;
 }
 
-void SpaceNavOrocos::resetPose(rstrt::geometry::Pose pose)
+void SpaceNavOrocos::resetPose(SpaceNavMsgPose pose)
 {
     in_current_pose_var = pose;
 }
@@ -385,7 +520,7 @@ void SpaceNavOrocos::cleanupHook()
 
 void SpaceNavOrocos::displayStatus()
 {
-    RTT::log(RTT::Error) << "[" << this->getName() << "] Info\n"
+    RTT::log(RTT::Warning) << "[" << this->getName() << "] Info\n"
                          << "Listening to interface " << getFileDescriptor() << "\n"
                          << "Button 1 " << (!button1_old ? "Not pressed => Translation enabled" : "Pressed => Translation disabled") << "\n"
                          << "Button 2 " << (!button2_old ? "Not pressed => Orientation enabled" : "Pressed => Orientation disabled") << "\n"

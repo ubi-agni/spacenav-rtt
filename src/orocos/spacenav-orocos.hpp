@@ -41,10 +41,30 @@
 #include <rst-rt/geometry/Rotation.hpp>
 #endif
 
+
+#ifdef USE_ROS
+// ROS messages
+#include <geometry_msgs/Pose.h>
+#include <geometry_msgs/Quaternion.h>
+#include <eigen_conversions/eigen_msg.h>
+#endif
+
 namespace cosima
 {
 namespace hw
 {
+  
+  
+#ifdef USE_RSTRT
+typedef rstrt::geometry::Pose SpaceNavMsgRot;
+typedef rstrt::geometry::Rotation SpaceNavMsgPose;
+#else
+ #ifdef USE_ROS
+  typedef geometry_msgs::Pose SpaceNavMsgPose;
+  typedef geometry_msgs::Quaternion SpaceNavMsgRot;
+ #endif
+#endif
+
 
 class SpaceNavOrocos : public RTT::TaskContext
 {
@@ -68,15 +88,16 @@ public:
 
   void displayStatus();
 
-#ifdef USE_RSTRT
+#if defined USE_RSTRT || defined USE_ROS
   void resetOrientation(float w, float x, float y, float z);
 
   void resetPoseToInitial();
 
-  void resetPose(rstrt::geometry::Pose pose);
+  void resetPose(SpaceNavMsgPose pose);
 
-  void setInitialRotation(rstrt::geometry::Rotation ir);
+  void setInitialRotation(SpaceNavMsgRot ir);
 #endif
+
 
 protected:
   cosima::hw::SpaceNavHID *interface;
@@ -86,23 +107,29 @@ protected:
   RTT::OutputPort<Eigen::VectorXf> out_6d_port;
   Eigen::VectorXf out_6d_var;
 
-#ifdef USE_RSTRT
-  RTT::OutputPort<rstrt::geometry::Pose> out_pose_port;
-  rstrt::geometry::Pose out_pose_var;
+#if defined USE_RSTRT || defined USE_ROS
+  RTT::OutputPort<SpaceNavMsgPose> out_pose_port;
+  SpaceNavMsgPose out_pose_var;
 
-  RTT::InputPort<rstrt::geometry::Pose> in_current_pose_port;
-  rstrt::geometry::Pose in_current_pose_var, initial_pose_var;
+  RTT::InputPort<SpaceNavMsgPose> in_current_pose_port;
+  SpaceNavMsgPose in_current_pose_var, initial_pose_var;
   RTT::FlowStatus in_current_pose_flow;
 #endif
 
+
 private:
+  void process_rstrst();
+  void process_ros();
+
   cosima::hw::SpaceNavValues values;
   cosima::hw::SpaceNavValues rawValues;
 
-#ifdef USE_RSTRT
-  rstrt::geometry::Rotation initial_rotation;
+#if defined USE_RSTRT || defined USE_ROS
+  SpaceNavMsgRot initial_rotation;
 #endif
 
+
+  std::string devicePath;
   float offsetTranslation;
   float offsetOrientation;
 
