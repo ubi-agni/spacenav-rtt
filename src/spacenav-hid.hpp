@@ -93,7 +93,7 @@ public:
   SpaceNavHID();
   ~SpaceNavHID();
 
-  bool initDevice();
+  bool initDevice(const char *dev_event_file_name="/dev/input/spacenavigator");
 
   void closeDevice();
 

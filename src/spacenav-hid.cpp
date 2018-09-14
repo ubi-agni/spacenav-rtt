@@ -115,7 +115,7 @@ int SpaceNavHID::getFileDescriptor()
   return fd;
 }
 
-bool SpaceNavHID::initDevice()
+bool SpaceNavHID::initDevice(const char *dev_event_file_name)
 {
   btn_0_pressed = false;
   btn_1_pressed = false;
@@ -127,7 +127,6 @@ bool SpaceNavHID::initDevice()
 
   std::string devDirectory = "/dev/input/";
   std::string path = devDirectory;
-  const char *dev_event_file_name = "/dev/input/spacenavigator";
 
   // Try backup Symlink first.
   std::cout << "[SpaceNavHID] "
